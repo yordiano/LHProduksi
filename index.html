@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laporan Produksi Harian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --panel:#171b1f;
+    --panel-2:#1f242a;
+    --panel-3:#262c33;
+    --line:#333b44;
+    --bg:#0e1114;
+    --amber:#e8a93a;
+    --amber-dim:#8a662a;
+    --green:#5fb87a;
+    --red:#d9604f;
+    --text:#e7e9ea;
+    --text-dim:#8d969e;
+    --mono:'IBM Plex Mono',monospace;
+    --sans:'IBM Plex Sans',sans-serif;
+    --cond:'IBM Plex Sans Condensed',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  :root{ padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px); }
+  html{ scroll-padding-top:env(safe-area-inset-top, 0px); }
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,169,58,0.06), transparent 40%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    color:var(--text);
+    font-family:var(--sans);
+    padding:0 0 60px 0;
+  }
+  .topbar{
+    background:var(--panel);
+    border-bottom:2px solid var(--amber-dim);
+    padding:calc(18px + env(safe-area-inset-top, 0px)) 20px 16px;
+    position:sticky; top:0; z-index:10;
+  }
+  .topbar-inner{max-width:1100px;margin:0 auto;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;justify-content:space-between;}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--amber);box-shadow:0 0 8px var(--amber);flex:none;align-self:center;}
+  h1{
+    font-family:var(--cond);
+    font-size:22px;
+    letter-spacing:0.3px;
+    margin:0;
+    font-weight:700;
+    color:#fff;
+  }
+  .subtitle{color:var(--text-dim);font-size:12.5px;margin-top:2px;}
+  .date-control{display:flex;align-items:center;gap:8px;font-family:var(--mono);}
+  .date-control label{color:var(--text-dim);font-size:11px;}
+  input[type=date]{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    padding:7px 9px;border-radius:3px;font-family:var(--mono);font-size:13px;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:24px 20px 0;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    margin-bottom:22px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;
+    border-bottom:1px solid var(--line);
+    background:var(--panel-2);
+  }
+  .panel-head h2{
+    font-family:var(--cond);
+    font-size:14px;
+    letter-spacing:0.4px;
+    margin:0;
+    color:var(--amber);
+    font-weight:700;
+  }
+  .panel-body{padding:16px;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;}
+  .field label{display:block;font-size:11px;color:var(--text-dim);margin-bottom:5px;}
+  .field input, .field select{
+    width:100%;
+    background:var(--panel-3);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:9px 10px;
+    border-radius:3px;
+    font-family:var(--mono);
+    font-size:13.5px;
+  }
+  .field input:focus, .field select:focus{outline:none;border-color:var(--amber-dim);}
+
+  .values-row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:12px;}
+  .value-chip{position:relative;}
+  .value-chip input{width:88px;}
+  .value-chip .rm{
+    position:absolute;top:-7px;right:-7px;width:16px;height:16px;border-radius:50%;
+    background:var(--red);color:#fff;border:none;font-size:10px;line-height:16px;text-align:center;cursor:pointer;padding:0;
+  }
+  .btn{
+    font-family:var(--cond);
+    font-weight:700;
+    letter-spacing:0.3px;
+    font-size:13px;
+    border:1px solid var(--line);
+    background:var(--panel-3);
+    color:var(--text);
+    padding:9px 14px;
+    border-radius:3px;
+    cursor:pointer;
+  }
+  .btn:hover{border-color:var(--amber-dim);color:var(--amber);}
+  .btn-amber{background:var(--amber);color:#20180a;border-color:var(--amber);}
+  .btn-amber:hover{background:#f2b950;color:#20180a;}
+  .btn-ghost{background:transparent;}
+  .btn-sm{padding:5px 9px;font-size:11px;border-radius:3px;}
+  .btn-add-val{align-self:flex-end;}
+
+  .row-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px;}
+  th{
+    text-align:left;font-family:var(--cond);font-size:11px;letter-spacing:0.4px;
+    color:var(--text-dim);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .num{text-align:right;font-variant-numeric:tabular-nums;}
+  .machine-tag{
+    display:inline-block;background:var(--panel-3);border:1px solid var(--line);
+    padding:2px 7px;border-radius:3px;font-family:var(--cond);font-weight:700;font-size:12px;color:#fff;
+  }
+  .pct{
+    font-weight:700;padding:3px 8px;border-radius:3px;display:inline-block;min-width:64px;text-align:center;
+  }
+  .pct.good{background:rgba(95,184,122,0.15);color:var(--green);border:1px solid rgba(95,184,122,0.4);}
+  .pct.warn{background:rgba(232,169,58,0.15);color:var(--amber);border:1px solid rgba(232,169,58,0.4);}
+  .pct.bad{background:rgba(217,96,79,0.15);color:var(--red);border:1px solid rgba(217,96,79,0.4);}
+  .del-btn{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;}
+  .del-btn:hover{color:var(--red);}
+
+  .empty{color:var(--text-dim);font-size:13px;padding:20px 4px;text-align:center;font-style:normal;}
+
+  .summary-strip{display:flex;gap:14px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid var(--line);background:var(--panel-2);}
+  .summary-item{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+  .summary-item b{color:#fff;font-size:15px;display:block;font-family:var(--mono);}
+
+  textarea{
+    width:100%;background:var(--panel-3);border:1px solid var(--line);color:var(--text);
+    padding:9px 10px;border-radius:3px;font-family:var(--sans);font-size:13px;resize:vertical;min-height:44px;
+  }
+
+  .history-item{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 14px;border-bottom:1px solid var(--line);cursor:pointer;
+  }
+  .history-item:last-child{border-bottom:none;}
+  .history-item:hover{background:var(--panel-2);}
+  .history-item.active{background:rgba(232,169,58,0.08);border-left:3px solid var(--amber);}
+  .history-date{font-family:var(--mono);font-size:13px;color:#fff;}
+  .history-meta{font-size:11px;color:var(--text-dim);}
+  .history-del{background:none;border:none;color:var(--text-dim);cursor:pointer;padding:4px;}
+  .history-del:hover{color:var(--red);}
+
+  .footer-note{max-width:1100px;margin:0 auto;padding:10px 20px 0;color:var(--text-dim);font-size:11.5px;}
+
+  .export-label{font-family:var(--cond);font-weight:700;font-size:13px;color:#fff;letter-spacing:0.2px;}
+  .export-desc{font-size:12px;color:var(--text-dim);margin-top:4px;line-height:1.5;}
+
+  @media (max-width:640px){
+    .grid{grid-template-columns:1fr 1fr;}
+    table{font-size:11.5px;}
+    th,td{padding:7px 6px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <h1>Laporan Produksi Harian</h1>
+        <div class="subtitle">Rekap output mesin &amp; downtime per shift</div>
+      </div>
+    </div>
+    <div class="date-control">
+      <label for="reportDate">TANGGAL</label>
+      <input type="date" id="reportDate">
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ENTRY FORM -->
+  <div class="panel">
+    <div class="panel-head"><h2>TAMBAH DATA MESIN</h2></div>
+    <div class="panel-body">
+      <div class="grid">
+        <div class="field">
+          <label>Mesin</label>
+          <select id="inMachine">
+            <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
+            <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+            <option>Line 9</option><option>Line 10</option><option>Line 11</option><option>Line 12</option>
+            <option value="__custom">Lainnya...</option>
+          </select>
+        </div>
+        <div class="field" id="customMachineField" style="display:none;">
+          <label>Nama Mesin</label>
+          <input type="text" id="inMachineCustom" placeholder="mis. Line 13">
+        </div>
+        <div class="field">
+          <label>Kode / Line</label>
+          <input type="text" id="inKode" placeholder="mis. BK 1l, IndoM 2l, BK 18l">
+        </div>
+        <div class="field">
+          <label>Planning</label>
+          <input type="number" id="inTarget" placeholder="mis. 2475">
+        </div>
+        <div class="field">
+          <label>Satuan</label>
+          <input type="text" id="inUnit" placeholder="car / jrc / pcs" value="car">
+        </div>
+      </div>
+
+      <div class="values-row" id="valuesRow">
+        <!-- value chips injected here -->
+      </div>
+      <div class="row-actions">
+        <button class="btn" id="addValueBtn">+ Tambah Pencapaian</button>
+        <button class="btn btn-amber" id="addEntryBtn">Simpan Baris ke Tabel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENTRIES TABLE -->
+  <div class="panel">
+    <div class="panel-head"><h2>DATA MESIN HARI INI</h2></div>
+    <div class="panel-body" style="padding:0;overflow-x:auto;">
+      <table id="entriesTable">
+        <thead>
+          <tr>
+            <th>Mesin</th><th>Kode</th><th>Pencapaian</th><th class="num">Total</th>
+            <th class="num">Planning</th><th class="num">%</th><th>Satuan</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="entriesBody"></tbody>
+      </table>
+      <div class="empty" id="entriesEmpty">Belum ada data mesin. Tambahkan lewat form di atas.</div>
+    </div>
+    <div class="summary-strip" id="summaryStrip"></div>
+  </div>
+
+  <!-- DOWNTIME FORM -->
+  <div class="panel">
+    <div class="panel-head"><h2>CATATAN DOWNTIME / KETERANGAN</h2></div>
+    <div class="panel-body">
+      <div class="grid" style="grid-template-columns:140px 1fr 120px;">
+        <div class="field">
+          <label>Mesin</label>
+          <select id="dtMachine">
+            <option>Line 1</option><option>Line 2</option><option>Line 3</option><option>Line 4</option>
+            <option>Line 5</option><option>Line 6</option><option>Line 7</option><option>Line 8</option>
+            <option>Line 9</option><option>Line 10</option><option>Line 11</option><option>Line 12</option>
+            <option value="__custom">Lainnya...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Keterangan</label>
+          <input type="text" id="dtDesc" placeholder="mis. Sensor filling error">
+        </div>
+        <div class="field">
+          <label>Menit</label>
+          <input type="number" id="dtMinutes" placeholder="mis. 90">
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-amber" id="addDowntimeBtn">Tambah Catatan</button>
+      </div>
+    </div>
+    <div class="panel-body" style="padding:0 16px 16px;">
+      <table id="downtimeTable">
+        <thead><tr><th>Mesin</th><th>Keterangan</th><th class="num">Menit</th><th></th></tr></thead>
+        <tbody id="downtimeBody"></tbody>
+      </table>
+      <div class="empty" id="downtimeEmpty">Belum ada catatan downtime.</div>
+    </div>
+  </div>
+
+  <!-- SAVE DAY -->
+  <div class="panel">
+    <div class="panel-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+      <div class="subtitle" id="saveStatus">Perubahan belum disimpan ke riwayat.</div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" id="newDayBtn">Kosongkan / Hari Baru</button>
+        <button class="btn btn-amber" id="saveDayBtn">Simpan Laporan Hari Ini</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="panel">
+    <div class="panel-head"><h2>RIWAYAT LAPORAN</h2></div>
+    <div id="historyList"></div>
+    <div class="empty" id="historyEmpty">Belum ada laporan tersimpan.</div>
+  </div>
+
+  <!-- EXPORT / IMPORT -->
+  <div class="panel">
+    <div class="panel-head"><h2>EXPORT &amp; BACKUP DATA</h2></div>
+    <div class="panel-body">
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div class="export-label">Export ke Excel</div>
+          <div class="export-desc">Unduh seluruh riwayat (semua tanggal) sebagai file .xlsx siap dibuka di Excel/Google Sheets — 3 sheet: Rekap Mesin, Detail Pencapaian, dan Downtime.</div>
+          <button class="btn btn-amber" id="exportExcelBtn" style="margin-top:10px;">⬇ Export Excel (.xlsx)</button>
+        </div>
+        <div>
+          <div class="export-label">Backup / Pindah Perangkat</div>
+          <div class="export-desc">Simpan seluruh data sebagai file .json untuk dicadangkan atau dipindahkan ke browser/perangkat lain, lalu impor kembali di sana.</div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+            <button class="btn" id="exportJsonBtn">⬇ Export Backup (.json)</button>
+            <button class="btn" id="importJsonTrigger">⬆ Import Backup (.json)</button>
+            <input type="file" id="importJsonFile" accept="application/json" style="display:none;">
+          </div>
+        </div>
+      </div>
+      <div class="subtitle" id="exportStatus" style="margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <!-- WHATSAPP TEMPLATE -->
+  <div class="panel">
+    <div class="panel-head"><h2>EXPORT TEKS LAPORAN (WHATSAPP)</h2></div>
+    <div class="panel-body">
+      <div class="export-desc">Menghasilkan teks laporan "Dept : Bottling" dari data mesin &amp; downtime pada tanggal yang sedang dibuka (lihat tanggal di atas), siap ditempel atau dikirim langsung ke WhatsApp.</div>
+      <div class="row-actions" style="margin-top:10px;">
+        <button class="btn btn-amber" id="genWaBtn">Buat Teks Laporan</button>
+        <button class="btn" id="copyWaBtn">📋 Copy Teks</button>
+        <button class="btn" id="sendWaBtn">🟢 Kirim ke WhatsApp</button>
+      </div>
+      <textarea id="waPreview" style="margin-top:12px;min-height:260px;font-family:var(--mono);font-size:12.5px;" placeholder="Klik 'Buat Teks Laporan' untuk melihat pratinjau di sini..." readonly></textarea>
+      <div class="subtitle" id="waStatus" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+</div>
+<div class="footer-note">Data disimpan otomatis di penyimpanan lokal browser ini (localStorage). Gunakan tombol Export Excel untuk laporan, atau Export/Import Backup (.json) untuk memindahkan data ke browser/perangkat lain.</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'prod_log_days_v1';
+  let currentValues = [];
+  let currentEntries = [];
+  let currentDowntimes = [];
+  let activeDate = null;
+
+  const $ = id => document.getElementById(id);
+
+  function todayISO(){
+    const d = new Date();
+    return d.toISOString().slice(0,10);
+  }
+
+  function loadAllDays(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){ return {}; }
+  }
+  function saveAllDays(data){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // ---------- Machine select custom handling ----------
+  $('inMachine').addEventListener('change', function(){
+    $('customMachineField').style.display = this.value === '__custom' ? 'block' : 'none';
+  });
+
+  function getMachineValue(selectId, customId){
+    const sel = $(selectId);
+    if(sel.value === '__custom'){
+      return ($(customId) ? $(customId).value.trim() : '') || 'MESIN';
+    }
+    return sel.value;
+  }
+
+  // ---------- Value chips ----------
+  function renderValueChips(){
+    const row = $('valuesRow');
+    row.querySelectorAll('.value-chip').forEach(el=>el.remove());
+    currentValues.forEach((v, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'value-chip field';
+      chip.innerHTML = `<label>Pencapaian ${i+1}</label><input type="number" value="${v}" data-idx="${i}">
+        <button class="rm" data-idx="${i}" title="Hapus">×</button>`;
+      row.insertBefore(chip, $('addValueBtn').parentElement === row ? $('addValueBtn') : null);
+      row.appendChild(chip);
+    });
+    row.querySelectorAll('.value-chip input').forEach(inp=>{
+      inp.addEventListener('input', e=>{
+        currentValues[+e.target.dataset.idx] = parseFloat(e.target.value) || 0;
+      });
+    });
+    row.querySelectorAll('.value-chip .rm').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        currentValues.splice(+e.target.dataset.idx,1);
+        renderValueChips();
+      });
+    });
+  }
+  $('addValueBtn').addEventListener('click', ()=>{
+    currentValues.push(0);
+    renderValueChips();
+  });
+  renderValueChips();
+
+  // ---------- Entries ----------
+  function pctClass(p){
+    if(p >= 95) return 'good';
+    if(p >= 80) return 'warn';
+    return 'bad';
+  }
+
+  function renderEntries(){
+    const body = $('entriesBody');
+    body.innerHTML = '';
+    $('entriesEmpty').style.display = currentEntries.length ? 'none' : 'block';
+    let sumTotal = 0, sumTarget = 0;
+    currentEntries.forEach((e, idx)=>{
+      const total = e.values.reduce((a,b)=>a+b,0);
+      const pct = e.target > 0 ? (total/e.target*100) : 0;
+      sumTotal += total; sumTarget += e.target;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="machine-tag">${e.machine}</span></td>
+        <td>${e.kode || '-'}</td>
+        <td>${e.values.join(' + ')}</td>
+        <td class="num">${total.toLocaleString('id-ID')}</td>
+        <td class="num">${e.target ? e.target.toLocaleString('id-ID') : '-'}</td>
+        <td class="num"><span class="pct ${pctClass(pct)}">${pct.toFixed(2)}%</span></td>
+        <td>${e.unit || 'car'}</td>
+        <td><button class="del-btn" data-idx="${idx}" title="Hapus baris">🗑</button></td>
+      `;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('.del-btn').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        currentEntries.splice(+e.currentTarget.dataset.idx,1);
+        renderEntries();
+        markUnsaved();
+      });
+    });
+    renderSummary(sumTotal, sumTarget);
+  }
+
+  function renderSummary(sumTotal, sumTarget){
+    const strip = $('summaryStrip');
+    if(currentEntries.length === 0){ strip.innerHTML=''; return; }
+    const overallPct = sumTarget > 0 ? (sumTotal/sumTarget*100) : 0;
+    const avgPct = currentEntries.reduce((a,e)=> a + (e.target>0? e.values.reduce((x,y)=>x+y,0)/e.target*100:0),0) / currentEntries.length;
+    strip.innerHTML = `
+      <div class="summary-item">JUMLAH BARIS<b>${currentEntries.length}</b></div>
+      <div class="summary-item">TOTAL PENCAPAIAN<b>${sumTotal.toLocaleString('id-ID')}</b></div>
+      <div class="summary-item">TOTAL PLANNING<b>${sumTarget.toLocaleString('id-ID')}</b></div>
+      <div class="summary-item">% GABUNGAN<b>${overallPct.toFixed(2)}%</b></div>
+      <div class="summary-item">RATA-RATA %<b>${avgPct.toFixed(2)}%</b></div>
+    `;
+  }
+
+  $('addEntryBtn').addEventListener('click', ()=>{
+    const machine = getMachineValue('inMachine','inMachineCustom');
+    const kode = $('inKode').value.trim();
+    const target = parseFloat($('inTarget').value) || 0;
+    const unit = $('inUnit').value.trim() || 'car';
+    const values = currentValues.filter(v => !isNaN(v));
+    if(values.length === 0){
+      alert('Tambahkan minimal satu angka nilai produksi.');
+      return;
+    }
+    currentEntries.push({machine, kode, target, unit, values: values.slice()});
+    // reset form
+    currentValues = [];
+    renderValueChips();
+    $('inKode').value = '';
+    $('inTarget').value = '';
+    renderEntries();
+    markUnsaved();
+  });
+
+  // ---------- Downtime ----------
+  function renderDowntime(){
+    const body = $('downtimeBody');
+    body.innerHTML = '';
+    $('downtimeEmpty').style.display = currentDowntimes.length ? 'none' : 'block';
+    currentDowntimes.forEach((d, idx)=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="machine-tag">${d.machine}</span></td>
+        <td>${d.desc}</td>
+        <td class="num">${d.minutes}m</td>
+        <td><button class="del-btn" data-idx="${idx}" title="Hapus">🗑</button></td>
+      `;
+      body.appendChild(tr);
+    });
+    body.querySelectorAll('.del-btn').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        currentDowntimes.splice(+e.currentTarget.dataset.idx,1);
+        renderDowntime();
+        markUnsaved();
+      });
+    });
+  }
+
+  $('dtMachine').addEventListener('change', function(){
+    // no custom field for downtime to keep it simple; reuse prompt if custom chosen
+  });
+
+  $('addDowntimeBtn').addEventListener('click', ()=>{
+    let machine = $('dtMachine').value;
+    if(machine === '__custom'){
+      machine = prompt('Nama mesin:', 'MESIN') || 'MESIN';
+    }
+    const desc = $('dtDesc').value.trim();
+    const minutes = parseFloat($('dtMinutes').value) || 0;
+    if(!desc){ alert('Isi keterangan downtime.'); return; }
+    currentDowntimes.push({machine, desc, minutes});
+    $('dtDesc').value = '';
+    $('dtMinutes').value = '';
+    renderDowntime();
+    markUnsaved();
+  });
+
+  // ---------- Save / Load day ----------
+  function markUnsaved(){
+    $('saveStatus').textContent = 'Perubahan belum disimpan ke riwayat.';
+    $('saveStatus').style.color = 'var(--amber)';
+  }
+  function markSaved(dateStr){
+    $('saveStatus').textContent = `Tersimpan untuk ${formatDateID(dateStr)}.`;
+    $('saveStatus').style.color = 'var(--green)';
+  }
+
+  function formatDateID(iso){
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString('id-ID', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+  }
+
+  $('saveDayBtn').addEventListener('click', ()=>{
+    const date = $('reportDate').value || todayISO();
+    const all = loadAllDays();
+    all[date] = { entries: currentEntries, downtimes: currentDowntimes };
+    saveAllDays(all);
+    activeDate = date;
+    markSaved(date);
+    renderHistory();
+  });
+
+  $('newDayBtn').addEventListener('click', ()=>{
+    if(currentEntries.length || currentDowntimes.length){
+      if(!confirm('Kosongkan data yang sedang diisi (belum disimpan akan hilang)?')) return;
+    }
+    currentEntries = [];
+    currentDowntimes = [];
+    currentValues = [];
+    renderValueChips();
+    renderEntries();
+    renderDowntime();
+    markUnsaved();
+  });
+
+  $('reportDate').addEventListener('change', ()=>{
+    const date = $('reportDate').value;
+    const all = loadAllDays();
+    if(all[date]){
+      currentEntries = JSON.parse(JSON.stringify(all[date].entries || []));
+      currentDowntimes = JSON.parse(JSON.stringify(all[date].downtimes || []));
+      activeDate = date;
+      markSaved(date);
+    } else {
+      currentEntries = [];
+      currentDowntimes = [];
+      activeDate = null;
+      markUnsaved();
+    }
+    renderEntries();
+    renderDowntime();
+    renderHistory();
+  });
+
+  // ---------- History ----------
+  function renderHistory(){
+    const all = loadAllDays();
+    const dates = Object.keys(all).sort((a,b)=> b.localeCompare(a));
+    const list = $('historyList');
+    list.innerHTML = '';
+    $('historyEmpty').style.display = dates.length ? 'none' : 'block';
+    dates.forEach(date=>{
+      const rec = all[date];
+      const rows = rec.entries.length;
+      const dtCount = rec.downtimes.length;
+      const item = document.createElement('div');
+      item.className = 'history-item' + (date === $('reportDate').value ? ' active' : '');
+      item.innerHTML = `
+        <div>
+          <div class="history-date">${formatDateID(date)}</div>
+          <div class="history-meta">${rows} baris mesin · ${dtCount} catatan downtime</div>
+        </div>
+        <button class="history-del" data-date="${date}" title="Hapus laporan">🗑</button>
+      `;
+      item.addEventListener('click', (e)=>{
+        if(e.target.closest('.history-del')) return;
+        $('reportDate').value = date;
+        $('reportDate').dispatchEvent(new Event('change'));
+      });
+      item.querySelector('.history-del').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(!confirm(`Hapus laporan tanggal ${formatDateID(date)}?`)) return;
+        const all2 = loadAllDays();
+        delete all2[date];
+        saveAllDays(all2);
+        if(activeDate === date){
+          currentEntries = []; currentDowntimes = []; activeDate = null;
+          renderEntries(); renderDowntime(); markUnsaved();
+        }
+        renderHistory();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  // ---------- Export to Excel ----------
+  function setExportStatus(msg, isErr){
+    const el = $('exportStatus');
+    el.textContent = msg;
+    el.style.color = isErr ? 'var(--red)' : 'var(--green)';
+  }
+
+  $('exportExcelBtn').addEventListener('click', ()=>{
+    const all = loadAllDays();
+    const dates = Object.keys(all).sort();
+    if(dates.length === 0){
+      setExportStatus('Belum ada laporan tersimpan untuk di-export.', true);
+      return;
+    }
+
+    // Sheet 1: Detail Pencapaian (flattened, one row per machine entry)
+    const detailRows = [];
+    // Sheet 2: Downtime (flattened)
+    const downtimeRows = [];
+    // Sheet 3: Rekap per Line (aggregated across all dates)
+    const rekapMap = {};
+
+    dates.forEach(date=>{
+      const rec = all[date];
+      (rec.entries||[]).forEach(e=>{
+        const total = e.values.reduce((a,b)=>a+b,0);
+        const pct = e.target > 0 ? (total/e.target*100) : 0;
+        const row = {
+          'Tanggal': date,
+          'Mesin': e.machine,
+          'Kode': e.kode || '',
+          'Planning': e.target || 0,
+        };
+        e.values.forEach((v,i)=>{ row['Pencapaian '+(i+1)] = v; });
+        row['Total Pencapaian'] = total;
+        row['Satuan'] = e.unit || 'car';
+        row['% Pencapaian'] = Math.round(pct*100)/100;
+        detailRows.push(row);
+
+        if(!rekapMap[e.machine]) rekapMap[e.machine] = {planning:0, pencapaian:0, hari:new Set()};
+        rekapMap[e.machine].planning += (e.target||0);
+        rekapMap[e.machine].pencapaian += total;
+        rekapMap[e.machine].hari.add(date);
+      });
+      (rec.downtimes||[]).forEach(d=>{
+        downtimeRows.push({
+          'Tanggal': date,
+          'Mesin': d.machine,
+          'Keterangan': d.desc,
+          'Menit': d.minutes
+        });
+      });
+    });
+
+    // Normalize detail rows so every row has same columns (fill blanks)
+    const maxVals = Math.max(...detailRows.map(r=>
+      Object.keys(r).filter(k=>k.startsWith('Pencapaian ')).length
+    ), 1);
+    const detailCols = ['Tanggal','Mesin','Kode','Planning'];
+    for(let i=1;i<=maxVals;i++) detailCols.push('Pencapaian '+i);
+    detailCols.push('Total Pencapaian','Satuan','% Pencapaian');
+    const detailNormalized = detailRows.map(r=>{
+      const o = {};
+      detailCols.forEach(c=> o[c] = (r[c] !== undefined ? r[c] : ''));
+      return o;
+    });
+
+    const rekapRows = Object.keys(rekapMap).sort().map(m=>{
+      const d = rekapMap[m];
+      const pct = d.planning > 0 ? (d.pencapaian/d.planning*100) : 0;
+      return {
+        'Mesin': m,
+        'Jumlah Hari': d.hari.size,
+        'Total Planning': d.planning,
+        'Total Pencapaian': d.pencapaian,
+        '% Pencapaian': Math.round(pct*100)/100
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const wsRekap = XLSX.utils.json_to_sheet(rekapRows);
+    const wsDetail = XLSX.utils.json_to_sheet(detailNormalized);
+    const wsDowntime = XLSX.utils.json_to_sheet(downtimeRows.length ? downtimeRows : [{'Tanggal':'','Mesin':'','Keterangan':'','Menit':''}]);
+
+    XLSX.utils.book_append_sheet(wb, wsRekap, 'Rekap per Line');
+    XLSX.utils.book_append_sheet(wb, wsDetail, 'Detail Pencapaian');
+    XLSX.utils.book_append_sheet(wb, wsDowntime, 'Downtime');
+
+    const fname = `laporan_produksi_${dates[0]}_sd_${dates[dates.length-1]}.xlsx`;
+    XLSX.writeFile(wb, fname);
+    setExportStatus(`Berhasil export ${dates.length} hari data ke ${fname}`);
+  });
+
+  // ---------- Export / Import JSON backup ----------
+  $('exportJsonBtn').addEventListener('click', ()=>{
+    const all = loadAllDays();
+    const dates = Object.keys(all);
+    if(dates.length === 0){
+      setExportStatus('Belum ada data untuk dicadangkan.', true);
+      return;
+    }
+    const blob = new Blob([JSON.stringify(all, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = todayISO();
+    a.href = url;
+    a.download = `laporan_produksi_backup_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setExportStatus(`Backup ${dates.length} hari data berhasil diunduh.`);
+  });
+
+  $('importJsonTrigger').addEventListener('click', ()=> $('importJsonFile').click());
+
+  $('importJsonFile').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt)=>{
+      try{
+        const incoming = JSON.parse(evt.target.result);
+        if(typeof incoming !== 'object' || Array.isArray(incoming)){
+          throw new Error('Format tidak dikenali');
+        }
+        const existing = loadAllDays();
+        const incomingDates = Object.keys(incoming);
+        const overlap = incomingDates.filter(d=> existing[d]);
+        let proceed = true;
+        if(overlap.length){
+          proceed = confirm(`${overlap.length} tanggal sudah ada datanya dan akan DITIMPA oleh file backup ini (${overlap.join(', ')}). Lanjutkan?`);
+        }
+        if(!proceed){ e.target.value=''; return; }
+        const merged = Object.assign({}, existing, incoming);
+        saveAllDays(merged);
+        renderHistory();
+        setExportStatus(`Berhasil import ${incomingDates.length} hari data dari backup.`);
+      }catch(err){
+        setExportStatus('Gagal membaca file backup: ' + err.message, true);
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- WhatsApp text template ----------
+  const MONTHS_SHORT_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const DAYS_ID = ['Minggu','Senin','Selasa','Rabu','Kamis',"Jumat",'Sabtu'];
+  const DEPT_NAME = 'Bottling';
+
+  // Line 1-7 = Handok mesin (grouped with lettering). Line 8-12 = mesin lain (heading "Line NN Nama").
+  const OTHER_LINE_NAME = {
+    8: 'Emec 2',
+    9: 'Emec 3',
+    10: 'Serac',
+    11: 'BIB',
+    12: 'Defoil'
+  };
+  function lineNumberOf(machine){
+    const m = /^Line\s+(\d+)$/i.exec((machine || '').trim());
+    return m ? parseInt(m[1], 10) : null;
+  }
+  function isHandok(machine){
+    const n = lineNumberOf(machine);
+    return n !== null && n >= 1 && n <= 7;
+  }
+  function displayMachineName(machine){
+    const n = lineNumberOf(machine);
+    if(n !== null){
+      if(n >= 1 && n <= 7) return `Handok ${String(n).padStart(2,'0')}`;
+      if(OTHER_LINE_NAME[n]) return `Line ${String(n).padStart(2,'0')} ${OTHER_LINE_NAME[n]}`;
+    }
+    return machine; // custom / unmapped machine name
+  }
+
+  function buildEntryLines(e, heading){
+    const block = [heading];
+    const total = e.values.reduce((a,b)=>a+b,0);
+    const totalFmt = total.toLocaleString('id-ID');
+    const unit = (e.unit || 'car').trim();
+    const kode = e.kode ? e.kode : e.machine;
+    block.push(`${kode} = ${totalFmt} ${unit}.`);
+
+    if(e.target > 0){
+      const pct = (total / e.target * 100).toFixed(2);
+      block.push(`Achievement = ${pct} %.`);
+    }
+
+    const probs = currentDowntimes.filter(dt => dt.machine === e.machine);
+    if(probs.length){
+      block.push('Problem :');
+      probs.forEach(p=> block.push(`${p.desc} (${p.minutes} menit).`));
+    }
+    return block;
+  }
+
+  function buildWhatsAppText(){
+    const date = $('reportDate').value || todayISO();
+    const d = new Date(date + 'T00:00:00');
+    const dayName = DAYS_ID[d.getDay()];
+    const dd = String(d.getDate()).padStart(2,'0');
+    const mon = MONTHS_SHORT_ID[d.getMonth()];
+    const yyyy = d.getFullYear();
+
+    const lines = [];
+    lines.push(`*Dept : ${DEPT_NAME}*`);
+    lines.push(`Hasil produksi hari ${dayName} tanggal ${dd} ${mon} ${yyyy} :`);
+    lines.push('');
+
+    const handokEntries = currentEntries.filter(e => isHandok(e.machine));
+    const otherEntries = currentEntries.filter(e => !isHandok(e.machine));
+
+    let first = true;
+
+    if(handokEntries.length > 0){
+      lines.push(`Mesin Handok ${handokEntries.length} line :`);
+      handokEntries.forEach((e, idx)=>{
+        if(idx > 0) lines.push('');
+        const letter = String.fromCharCode(65 + idx);
+        lines.push(...buildEntryLines(e, `${letter}. ${displayMachineName(e.machine)} :`));
+      });
+      first = false;
+    }
+
+    otherEntries.forEach(e=>{
+      if(!first) lines.push('');
+      lines.push(...buildEntryLines(e, `${displayMachineName(e.machine)} :`));
+      first = false;
+    });
+
+    // downtimes for machines that have no matching entry row (unlinked notes)
+    const enteredMachines = new Set(currentEntries.map(e=>e.machine));
+    const orphanDowntimes = currentDowntimes.filter(dt => !enteredMachines.has(dt.machine));
+    if(orphanDowntimes.length){
+      if(!first) lines.push('');
+      lines.push('Catatan tambahan :');
+      orphanDowntimes.forEach(p=> lines.push(`${displayMachineName(p.machine)} : ${p.desc} (${p.minutes} menit).`));
+    }
+
+    return lines.join('\n').trim();
+  }
+
+  $('genWaBtn').addEventListener('click', ()=>{
+    if(currentEntries.length === 0 && currentDowntimes.length === 0){
+      $('waStatus').style.color = 'var(--red)';
+      $('waStatus').textContent = 'Tidak ada data untuk tanggal ini. Pilih tanggal lain atau isi data dulu.';
+      $('waPreview').value = '';
+      return;
+    }
+    $('waPreview').value = buildWhatsAppText();
+    $('waStatus').style.color = 'var(--green)';
+    $('waStatus').textContent = 'Teks laporan siap. Silakan Copy atau Kirim ke WhatsApp.';
+  });
+
+  $('copyWaBtn').addEventListener('click', async ()=>{
+    const text = $('waPreview').value || buildWhatsAppText();
+    if(!text){ return; }
+    $('waPreview').value = text;
+    try{
+      await navigator.clipboard.writeText(text);
+      $('waStatus').style.color = 'var(--green)';
+      $('waStatus').textContent = 'Teks berhasil disalin ke clipboard.';
+    }catch(err){
+      $('waPreview').select();
+      document.execCommand('copy');
+      $('waStatus').style.color = 'var(--green)';
+      $('waStatus').textContent = 'Teks berhasil disalin ke clipboard.';
+    }
+  });
+
+  $('sendWaBtn').addEventListener('click', ()=>{
+    const text = $('waPreview').value || buildWhatsAppText();
+    if(!text){
+      $('waStatus').style.color = 'var(--red)';
+      $('waStatus').textContent = 'Tidak ada data untuk dikirim.';
+      return;
+    }
+    $('waPreview').value = text;
+    const url = 'https://wa.me/?text=' + encodeURIComponent(text);
+    window.open(url, '_blank');
+  });
+
+  // ---------- Init ----------
+  $('reportDate').value = todayISO();
+  $('reportDate').dispatchEvent(new Event('change'));
+  renderEntries();
+  renderDowntime();
+  renderHistory();
+})();
+</script>
+
+</body>
+</html>
